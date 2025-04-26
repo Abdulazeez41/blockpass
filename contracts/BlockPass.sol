@@ -63,13 +63,13 @@ contract BlockPass is ERC721URIStorage, Ownable {
         totalPasses++;
     }
 
-    function purchasePass(uint256 _blockPassId) external payable {
+    function purchasePass(uint256 _blockPassId) public payable {
         PassDetails storage _pass = getPassById[_blockPassId];
 
         require(block.timestamp >= _pass.start_time && block.timestamp <= _pass.end_time, "Not within sale window");
         require(_pass.passesSold < _pass.max_passes, "Sold out");
 
-        uint256 originalPriceInFLR = this.convertUsdToFLRWei{value: msg.value}(_pass.passPriceUSD);
+        uint256 originalPriceInFLR = convertUsdToFLRWei(_pass.passPriceUSD);
         uint256 passPrice = originalPriceInFLR;
 
         // Optional: Apply 10% discount during high volatility
@@ -102,20 +102,18 @@ contract BlockPass is ERC721URIStorage, Ownable {
     }
 
 
-    function convertUsdToFLRWei(uint256 usdAmount) public payable returns (uint256 flrInWei) {
+    function convertUsdToFLRWei(uint256 usdAmount) public returns (uint256 flrInWei) {
         FtsoV2Interface ftso = ContractRegistry.getFtsoV2();
         bytes21 usdFeedId = ContractRegistry
             .getFtsoFeedIdConverter()
-            .getFeedId(1, "USD");
+            .getFeedId(1, "FLR/USD");
 
-        (uint256 flrPriceInWei, ) = ftso.getFeedByIdInWei{value: msg.value}(usdFeedId);
+        (uint256 flrPriceInWei, ) = ftso.getFeedByIdInWei(usdFeedId);
 
         require(flrPriceInWei > 0, "Invalid FTSO price");
 
         flrInWei = (usdAmount * 1e18) / flrPriceInWei;
     }
-
-
 
     function _generateTokenURI(PassDetails memory _pass, uint256 passPrice, uint256 originalPrice, bool bonus) internal pure returns (string memory) {
         string memory json = string(abi.encodePacked(
@@ -207,5 +205,12 @@ contract BlockPass is ERC721URIStorage, Ownable {
         );
     }
 
+    function exampleFlrUsdConversion() external view returns (bytes21) {
+        IFtsoFeedIdConverter feedIdConverter = ContractRegistry.getFtsoFeedIdConverter();
+        return feedIdConverter.getFeedId(1, "FLR/USD");
+    }
+
     receive() external payable {}
+
+    fallback() external payable {}
 }

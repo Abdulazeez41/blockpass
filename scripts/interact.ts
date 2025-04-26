@@ -3,17 +3,17 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0xD469738D0c8b0096d5862BD83F436007a4F5e14c";
+const CONTRACT_ADDRESS = "0x532d3133B07DbB87930B2A0F44157e6B16F66d56";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   const BlockPassFactory = await ethers.getContractFactory("BlockPass");
-  const contract = await BlockPassFactory.attach(CONTRACT_ADDRESS);
+  const contract = BlockPassFactory.attach(CONTRACT_ADDRESS);
 
   console.log("🔗 Connected to contract at:", contract.address);
 
-  
-const passPriceUSD = ethers.parseUnits("0.01", 18); // same as 0.01 FLR in wei
+//const passPriceUSD = ethers.parseUnits("1", 18); // same as $1
+ const passPriceUSD = 1; 
 const maxSupply = 100;
 const startTime = Math.floor(Date.now() / 1000) + 10;
 const endTime = startTime + 86400;
@@ -33,6 +33,16 @@ const tx = await contract.createNewPass(
   console.log("⏳ Waiting 15s for sales to start...");
   await new Promise((res) => setTimeout(res, 15000));
 
+  const feedId = await contract.exampleFlrUsdConversion();
+  console.log("FLR/USD Feed ID:", feedId);
+  // === GETTERS after purchase ===
+    // const result = await contract.getTokenPriceInUSDWei("FLR/USD");
+    // const priceFLR = result[0];
+    // const timestampFLR = result[1];
+
+    // console.log("FLR/USD price in wei:", priceFLR.toString());
+    // console.log("Timestamp:", timestampFLR.toString());
+
   const passId = 0;
 
   try {
@@ -40,23 +50,14 @@ const tx = await contract.createNewPass(
     console.log("📅 Current block timestamp:", block.timestamp);
     console.log("🚀 Pass sale start time:", startTime);
 
-    // === 1. Define a default fee (for example, 0.01 FLR)
-    const defaultFee = ethers.parseUnits("0.01", 18); // Default fee (0.01 FLR)
-
-    console.log("💸 Using default fee for FTSO feed call:", ethers.formatEther(defaultFee), "FLR");
-
-    // === 2. Now call convertUsdToFLRWei with {value: defaultFee}
-    const requiredPrice = await contract.convertUsdToFLRWei(passPriceUSD, { value: defaultFee });
-    console.log("💰 Required price in wei:", requiredPrice.toString());
-
-    // === 3. Load pass data
-    const pass = await contract.passes(passId);
-    console.log("🎟️ Pass info:", pass);
+    //const requiredPrice = await contract.convertUsdToFLRWei(passPriceUSD);
+    //console.log(`💰 Required price in wei:${requiredPrice.toString()}`);
 
     // === 4. Pay and purchase pass
-    const purchaseTx = await contract.purchasePass(passId, { value: requiredPrice });
+    const purchaseTx = await contract.purchasePass(passId, { value: passPriceUSD });
     const receipt = await purchaseTx.wait();
     console.log("✅ Pass purchased! Tx hash:", receipt.transactionHash);
+
   } catch (error: any) {
     console.error("❌ Purchase failed:", error.message || error);
   }
