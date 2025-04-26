@@ -1,18 +1,3 @@
-<<<<<<< HEAD
-# Sample Hardhat Project
-
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
-
-Try running some of the following tasks:
-
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.ts
-```
-=======
 # BlockPass Smart Contract
 
 ## Overview
@@ -144,4 +129,3 @@ Once a user has purchased a pass, they can view the details of their NFT via the
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
->>>>>>> master
