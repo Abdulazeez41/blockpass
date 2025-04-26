@@ -63,23 +63,25 @@ contract BlockPass is ERC721URIStorage, Ownable {
         totalPasses++;
     }
 
-    function purchasePass(uint256 _blockPassId) external payable {
+
+    function purchasePass(uint256 _blockPassId) public payable {
         PassDetails storage _pass = getPassById[_blockPassId];
 
         require(block.timestamp >= _pass.start_time && block.timestamp <= _pass.end_time, "Not within sale window");
         require(_pass.passesSold < _pass.max_passes, "Sold out");
 
-        uint256 originalPrice = _pass.passPriceUSD;
-        uint256 passPrice = originalPrice;
+        uint256 originalPriceInFLR = convertUsdToFLRWei(_pass.passPriceUSD);
+        uint256 passPrice = originalPriceInFLR;
 
+        // Optional: Apply 10% discount during high volatility
         if (_isVolatilityHigh("FLR", "USD")) {
-            passPrice = (originalPrice * 90) / 100; // 10% discount
+            passPrice = (originalPriceInFLR * 90) / 100;
         }
 
-        require(msg.value >= passPrice, "Insufficient payment");
+        require(msg.value >= passPrice, "Insufficient FLR payment");
 
         bool bonus = _isWinner();
-        string memory tokenURI = _generateTokenURI(_pass, passPrice, originalPrice, bonus);
+        string memory tokenURI = _generateTokenURI(_pass, passPrice, originalPriceInFLR, bonus);
 
         _safeMint(msg.sender, nextTokenId);
         _setTokenURI(nextTokenId, tokenURI);
@@ -90,11 +92,28 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
         emit PassBooked(msg.sender, nextTokenId, _blockPassId, passPrice, bonus);
 
-        // Transfer 90% to organizer
         uint256 organizerAmount = (passPrice * 90) / 100;
         payable(_pass.organizer).transfer(organizerAmount);
 
+        if (msg.value > passPrice) {
+            payable(msg.sender).transfer(msg.value - passPrice);
+        }
+
         nextTokenId++;
+    }
+
+
+    function convertUsdToFLRWei(uint256 usdAmount) public returns (uint256 flrInWei) {
+        FtsoV2Interface ftso = ContractRegistry.getFtsoV2();
+        bytes21 usdFeedId = ContractRegistry
+            .getFtsoFeedIdConverter()
+            .getFeedId(1, "FLR/USD");
+
+        (uint256 flrPriceInWei, ) = ftso.getFeedByIdInWei(usdFeedId);
+
+        require(flrPriceInWei > 0, "Invalid FTSO price");
+
+        flrInWei = (usdAmount * 1e18) / flrPriceInWei;
     }
 
     function _generateTokenURI(PassDetails memory _pass, uint256 passPrice, uint256 originalPrice, bool bonus) internal pure returns (string memory) {
@@ -114,16 +133,16 @@ contract BlockPass is ERC721URIStorage, Ownable {
     }
 
     function _isWinner() internal view returns (bool) {
-        return uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number - 1)))) % 5 == 0;
+        // (uint256 rand,,) = rng.getRandomNumber();
+        // return rand % 5 == 0; // 20% chance to win perk;
     }
 
-    function _isVolatilityHigh(string memory token1, string memory token2) internal view returns (bool) {
+    function _isVolatilityHigh(string memory token1, string memory token2) internal returns (bool) {
+        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
         IFtsoFeedIdConverter feedConverter = ContractRegistry.getFtsoFeedIdConverter();
-        bytes21[2] memory feedIds;
+        bytes21[] memory feedIds = new bytes21[](2);
         feedIds[0] = feedConverter.getFeedId(1, token1);
         feedIds[1] = feedConverter.getFeedId(1, token2);
-
-        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
 
         (uint256[] memory prices, ) = ftsoV2.getFeedsByIdInWei(feedIds);
 
@@ -181,12 +200,34 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
      function getTokenPriceInUSDWei(
         string memory feedName
-    ) public view returns (uint256 _priceInWei, uint256 _finalizedTimestamp) {
+    ) public returns (uint256 _priceInWei, uint256 _finalizedTimestamp) {
         FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
         (_priceInWei, _finalizedTimestamp) = ftsoV2.getFeedByIdInWei(
             ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName)
         );
     }
 
+    function flrUsdConversion() external view returns (bytes21) {
+        IFtsoFeedIdConverter feedIdConverter = ContractRegistry.getFtsoFeedIdConverter();
+        return feedIdConverter.getFeedId(1, "FLR/USD");
+    }
+
+    function getCurrentTokenPriceWithDecimals(
+        string memory feedName
+    ) public view returns (uint256 _price, int8 _decimals) {
+        // WARNING: This is a test contract, do not use it in production
+        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
+        // Convert feed name to feed ID
+        bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(
+            1, // Crypto feeds start with 1
+            feedName
+        );
+        // Query the FTSO system
+        //The call also returns `timestamp` when the price was last updated, but we discard it
+        (_price, _decimals, ) = ftsoV2.getFeedById(feedId);
+    }
+
     receive() external payable {}
+
+    fallback() external payable {}
 }
