@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/utils/Base64.sol";
 import {FtsoV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/FtsoV2Interface.sol";
 import {ContractRegistry} from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
 import {IFtsoFeedIdConverter} from "@flarenetwork/flare-periphery-contracts/coston2/IFtsoFeedIdConverter.sol";
+// import {RandomNumberV2Interface} from "@flarenetwork/flare-periphery-contracts/coston/RandomNumberV2Interface.sol";
 
 
 contract BlockPass is ERC721URIStorage, Ownable {
@@ -27,6 +28,8 @@ contract BlockPass is ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
     uint256 public volatilityThreshold = 10;
 
+    //RandomNumberV2Interface private rng;
+
     mapping(uint256 => PassDetails) public getPassById;
     PassDetails[] public blockPassList;
 
@@ -36,6 +39,7 @@ contract BlockPass is ERC721URIStorage, Ownable {
     event PassBooked(address indexed buyer, uint256 tokenId, uint256 blockPassId, uint256 pricePaid, bool bonus);
 
     constructor() ERC721("BlockPass", "BPASS") Ownable(msg.sender) {
+        // rng = ContractRegistry.getRandomNumberV2();
     }
 
     function createNewPass(
@@ -132,7 +136,8 @@ contract BlockPass is ERC721URIStorage, Ownable {
     }
 
     function _isWinner() internal view returns (bool) {
-        return uint256(keccak256(abi.encodePacked(block.timestamp, msg.sender, blockhash(block.number - 1)))) % 5 == 0;
+        // (uint256 rand,,) = rng.getRandomNumber();
+        // return rand % 5 == 0; // 20% chance to win perk;
     }
 
     function _isVolatilityHigh(string memory token1, string memory token2) internal returns (bool) {
@@ -205,9 +210,24 @@ contract BlockPass is ERC721URIStorage, Ownable {
         );
     }
 
-    function exampleFlrUsdConversion() external view returns (bytes21) {
+    function flrUsdConversion() external view returns (bytes21) {
         IFtsoFeedIdConverter feedIdConverter = ContractRegistry.getFtsoFeedIdConverter();
         return feedIdConverter.getFeedId(1, "FLR/USD");
+    }
+
+    function getCurrentTokenPriceWithDecimals(
+        string memory feedName
+    ) public view returns (uint256 _price, int8 _decimals) {
+        // WARNING: This is a test contract, do not use it in production
+        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
+        // Convert feed name to feed ID
+        bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(
+            1, // Crypto feeds start with 1
+            feedName
+        );
+        // Query the FTSO system
+        //The call also returns `timestamp` when the price was last updated, but we discard it
+        (_price, _decimals, ) = ftsoV2.getFeedById(feedId);
     }
 
     receive() external payable {}

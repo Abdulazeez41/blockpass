@@ -3,7 +3,7 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0x532d3133B07DbB87930B2A0F44157e6B16F66d56";
+const CONTRACT_ADDRESS = "0xC96555F0481e44B4b5afe75F61Cef76019eb7b5E";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -33,7 +33,7 @@ const tx = await contract.createNewPass(
   console.log("⏳ Waiting 15s for sales to start...");
   await new Promise((res) => setTimeout(res, 15000));
 
-  const feedId = await contract.exampleFlrUsdConversion();
+  const feedId = await contract.flrUsdConversion();
   console.log("FLR/USD Feed ID:", feedId);
   // === GETTERS after purchase ===
     // const result = await contract.getTokenPriceInUSDWei("FLR/USD");
