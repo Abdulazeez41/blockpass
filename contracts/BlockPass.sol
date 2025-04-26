@@ -212,21 +212,6 @@ contract BlockPass is ERC721URIStorage, Ownable {
         return feedIdConverter.getFeedId(1, "FLR/USD");
     }
 
-    function getCurrentTokenPriceWithDecimals(
-        string memory feedName
-    ) public view returns (uint256 _price, int8 _decimals) {
-        // WARNING: This is a test contract, do not use it in production
-        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        // Convert feed name to feed ID
-        bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(
-            1, // Crypto feeds start with 1
-            feedName
-        );
-        // Query the FTSO system
-        //The call also returns `timestamp` when the price was last updated, but we discard it
-        (_price, _decimals, ) = ftsoV2.getFeedById(feedId);
-    }
-
     receive() external payable {}
 
     fallback() external payable {}

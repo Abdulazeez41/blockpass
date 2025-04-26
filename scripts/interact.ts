@@ -3,14 +3,14 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0xC96555F0481e44B4b5afe75F61Cef76019eb7b5E";
+const CONTRACT_ADDRESS = "0x4fc38198a44D0a329Beb29e906666001eCFFA7F9";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
   const BlockPassFactory = await ethers.getContractFactory("BlockPass");
   const contract = BlockPassFactory.attach(CONTRACT_ADDRESS);
 
-  console.log("🔗 Connected to contract at:", contract.address);
+  console.log("🔗 Connected to contract at:", contract.target);
 
 //const passPriceUSD = ethers.parseUnits("1", 18); // same as $1
  const passPriceUSD = 1; 
@@ -36,12 +36,12 @@ const tx = await contract.createNewPass(
   const feedId = await contract.flrUsdConversion();
   console.log("FLR/USD Feed ID:", feedId);
   // === GETTERS after purchase ===
-    // const result = await contract.getTokenPriceInUSDWei("FLR/USD");
-    // const priceFLR = result[0];
-    // const timestampFLR = result[1];
+    const result = await contract.getTokenPriceInUSDWei("FLR/USD");
+    const priceFLR = result[0];
+    const timestampFLR = result[1];
 
-    // console.log("FLR/USD price in wei:", priceFLR.toString());
-    // console.log("Timestamp:", timestampFLR.toString());
+    console.log("FLR/USD price in wei:", priceFLR.toString());
+    console.log("Timestamp:", timestampFLR.toString());
 
   const passId = 0;
   try {
