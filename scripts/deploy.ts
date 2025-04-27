@@ -21,7 +21,7 @@ async function main() {
       address: blockPass.address,
       constructorArguments: args,
     });
-    console.log("🔍 Verification result:", result);
+    console.log("🔍 Verification process completed!");
   } catch (e: any) {
     console.error("⚠️ Verification error:", e.message);
   }

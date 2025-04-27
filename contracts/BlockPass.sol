@@ -33,6 +33,8 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
     mapping(address => PassDetails[]) public blockPassesBookedByUser;
     mapping(uint256 => address) public tokenIdToOwner;
+    mapping(string => uint256) public lastSavedPrice;
+    mapping(string => uint256) public lastSavedTimestamp;
 
     event PassBooked(address indexed buyer, uint256 tokenId, uint256 blockPassId, uint256 pricePaid, bool bonus);
     event USDInWei(uint256 priceInWei);
@@ -72,13 +74,16 @@ contract BlockPass is ERC721URIStorage, Ownable {
         require(block.timestamp >= _pass.start_time && block.timestamp <= _pass.end_time, "Not within sale window");
         require(_pass.passesSold < _pass.max_passes, "Sold out");
 
+        _ensureSavedPrice("FLR/USD");
+
         uint256 originalPriceInFLR = convertUsdToFLRWei(_pass.passPriceUSD);
         uint256 passPrice = originalPriceInFLR;
 
-        // Optional: Apply 10% discount during high volatility
-        // if (_isVolatilityHigh("FLR", "USD")) {
-        //     passPrice = (originalPriceInFLR * 90) / 100;
-        // }
+        // Apply 10% discount during high volatility
+        if (_isVolatilityHigh("FLR/USD")) {
+            passPrice = (originalPriceInFLR * 90) / 100;
+        }
+
 
         require(msg.value >= passPrice, "Insufficient FLR payment");
 
@@ -148,20 +153,35 @@ contract BlockPass is ERC721URIStorage, Ownable {
         // return rand % 5 == 0; // 20% chance to win perk;
     }
 
-    function _isVolatilityHigh(string memory token1, string memory token2) internal returns (bool) {
-        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        IFtsoFeedIdConverter feedConverter = ContractRegistry.getFtsoFeedIdConverter();
-        bytes21[] memory feedIds = new bytes21[](2);
-        feedIds[0] = feedConverter.getFeedId(1, token1);
-        feedIds[1] = feedConverter.getFeedId(1, token2);
 
-        (uint256[] memory prices, ) = ftsoV2.getFeedsByIdInWei(feedIds);
+    function _isVolatilityHigh(string memory feedName) internal returns (bool) {
+        uint256 currentPrice = _getCurrentPrice(feedName);
+        uint256 oldPrice = lastSavedPrice[feedName];
 
-        // Assume price[0] is FLR, price[1] is USD equivalent (e.g., 1e18 for $1)
-        uint256 diff = prices[0] > prices[1] ? prices[0] - prices[1] : prices[1] - prices[0];
-        uint256 percentageChange = (diff * 100) / prices[1];
+        uint256 diff = currentPrice > oldPrice ? currentPrice - oldPrice : oldPrice - currentPrice;
+        uint256 percentageChange = (diff * 100) / oldPrice;
 
         return percentageChange >= volatilityThreshold;
+    }
+
+    function _getCurrentPrice(string memory feedName) internal returns (uint256) {
+        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
+        bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName);
+        (uint256 price, ) = ftsoV2.getFeedByIdInWei(feedId);
+
+        require(price > 0, "Invalid FTSO price");
+        return price;
+    }
+
+    function _ensureSavedPrice(string memory feedName) internal {
+        if (lastSavedPrice[feedName] == 0) {
+            FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
+            bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName);
+            (uint256 price, ) = ftsoV2.getFeedByIdInWei(feedId);
+            require(price > 0, "Invalid feed price");
+            lastSavedPrice[feedName] = price;
+            lastSavedTimestamp[feedName] = block.timestamp;
+        }
     }
 
     function setVolatilityThreshold(uint256 _threshold) external onlyOwner {

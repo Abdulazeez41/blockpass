@@ -3,7 +3,7 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0xf47c98abA1a4c4eB778991AeE7Ea889a977fEA3E";
+const CONTRACT_ADDRESS = "0x2707147D4cc518cB7d18110695256Ddc5badCeeC";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -24,18 +24,21 @@ async function main() {
   console.log("FLR/USD Feed ID:", feedId);
 
   // Debugging: Log the USD amount being converted
-  const passPriceUSD = 1; 
+  const passPriceUSD = 1;
   console.log("💵 USD amount to convert:", passPriceUSD);
 
-// Listen for the USDInWei event
-contract.on("USDInWei", (priceInWei: any) => {
-  console.log("📢 USDInWei event emitted! Price in Wei:", priceInWei.toString());
-  weiPrice = priceInWei
-});
+  // Listen for the USDInWei event
+  contract.on("USDInWei", (priceInWei: any) => {
+    console.log(
+      "📢 USDInWei event emitted! Price in Wei:",
+      priceInWei.toString()
+    );
+    weiPrice = priceInWei;
+  });
 
-// Call the convertUsdToFLRWei function
-const requiredPrice = await contract.convertUsdToFLRWei(passPriceUSD);
-await requiredPrice.wait();
+  // Call the convertUsdToFLRWei function
+  const requiredPrice = await contract.convertUsdToFLRWei(passPriceUSD);
+  console.log("📢 Required Price:", requiredPrice.toString());
 
   const maxSupply = 100;
   const startTime = Math.floor(Date.now() / 1000) + 10;
@@ -65,8 +68,7 @@ await requiredPrice.wait();
     // === 4. Pay and purchase pass
     const purchaseTx = await contract.purchasePass(passId, { value: weiPrice });
     const receipt = await purchaseTx.wait();
-    console.log("✅ Pass purchased! Tx hash:", receipt.transactionHash);
-
+    console.log("✅ Pass purchased! Tx hash:", receipt.hash);
   } catch (error: any) {
     console.error("❌ Purchase failed:", error);
   }
@@ -74,7 +76,9 @@ await requiredPrice.wait();
   // Test the feed ID and price using the test interface
   try {
     const feedName = "FLR/USD";
-    const [priceInWei, finalizedTimestamp] = await contract.testFeedIdAndPrice(feedName);
+    const [priceInWei, finalizedTimestamp] = await contract.testFeedIdAndPrice(
+      feedName
+    );
     console.log(`🧪 Test Feed ID and Price: ${feedName}`);
     console.log(`💰 Price in Wei: ${priceInWei.toString()}`);
     console.log(`📅 Finalized Timestamp: ${finalizedTimestamp}`);
@@ -82,7 +86,6 @@ await requiredPrice.wait();
     console.error("❌ Test Feed ID and Price failed:", error);
   }
 }
-
 
 main().catch((error) => {
   console.error("❌ Error:", error);
