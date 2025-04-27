@@ -64,6 +64,23 @@ async function main() {
   } catch (error: any) {
     console.error("❌ Purchase failed:", error);
   }
+
+  // === Getters and View Functions ===
+  // Get all passes available
+  const allPasses = await contract.getAllPasses();
+  console.log("📃 All passes:", allPasses);
+
+  // Get passes by category
+  const musicPasses = await contract.getByCategory("Music");
+  console.log("🎶 Music passes:", musicPasses);
+
+  // Get user's tokens (by their address)
+  const userTokens = await contract.getUserTokens(deployer.address);
+  console.log("🪙 User's tokens:", userTokens);
+
+  // Get a user's purchases
+  const userPurchases = await contract.getUserPurchases(deployer.address);
+  console.log("🛍️ User's purchases:", userPurchases);
 }
 
 main().catch((error) => {
