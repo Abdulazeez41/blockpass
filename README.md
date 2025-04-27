@@ -156,6 +156,10 @@ If the volatility is high (price fluctuations exceed 10%), the ticket price is a
 
 **BlockPass** is a unique and innovative smart contract that brings gamified NFT ticketing and dynamic pricing to the blockchain. By leveraging real-time market data, randomness for bonuses, and transparency through NFT metadata, BlockPass creates an engaging experience for both event organizers and attendees.
 
+## Deployed Address
+
+- [Blockpass Address](https://coston2-explorer.flare.network/address/0x98f15D065849BFe28bbD0AF4Fef19A3A6A81FdBE#code)
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
