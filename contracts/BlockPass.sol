@@ -36,7 +36,7 @@ contract BlockPass is ERC721URIStorage, Ownable {
     RandomNumberV2Interface private rnd;
 
     mapping(uint256 => TicketPassDetails) public ticketPasses;
-    mapping(address => TicketPassDetails[]) public passesPurchasedByUser;
+    mapping(address => uint256[]) public passesPurchasedByUser;
     mapping(address => uint256[]) public tokenOfOwnerByIndex;
 
     mapping(string => uint256) public lastSavedPrice;
@@ -101,8 +101,8 @@ contract BlockPass is ERC721URIStorage, Ownable {
         _safeMint(msg.sender, nextTokenId);
         _setTokenURI(nextTokenId, tokenURI);
 
-        pass.passesSold++;
-        passesPurchasedByUser[msg.sender].push(pass);
+        ticketPasses[_ticketId].passesSold++;
+        passesPurchasedByUser[msg.sender].push(_ticketId);
         tokenOfOwnerByIndex[msg.sender].push(nextTokenId);
 
         emit PassPurchased(msg.sender, _ticketId,nextTokenId, priceToPay, bonus);
@@ -232,7 +232,7 @@ contract BlockPass is ERC721URIStorage, Ownable {
         return result;
     }
 
-    function getUserPurchases(address user) external view returns (TicketPassDetails[] memory) {
+    function getUserPurchases(address user) external view returns (uint256[] memory) {
         return passesPurchasedByUser[user];
     }
 

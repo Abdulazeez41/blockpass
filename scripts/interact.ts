@@ -3,7 +3,7 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0x73d3463Fc856e5d3826A3a1f4209Ee1D5eFC0470";
+const CONTRACT_ADDRESS = "0xb174642C2394fF821dA1512bc44D996D37B88482";
 
 async function main() {
   const [deployer] = await ethers.getSigners();

@@ -158,7 +158,7 @@ If the volatility is high (price fluctuations exceed 10%), the ticket price is a
 
 ## Deployed Address
 
-- [Blockpass Address](https://coston2-explorer.flare.network/address/0x98f15D065849BFe28bbD0AF4Fef19A3A6A81FdBE#code)
+- [Blockpass Address](https://coston2-explorer.flare.network/address/0xb174642C2394fF821dA1512bc44D996D37B88482#code)
 
 ## License
 
