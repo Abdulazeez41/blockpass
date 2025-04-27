@@ -71,6 +71,3 @@ main().catch((error) => {
   console.error("❌ Error:", error);
   process.exitCode = 1;
 });
-
-//check why is volatality is returning error (it needs a pair)
-//try to call the functions separately and emit an event (or use test interface)
