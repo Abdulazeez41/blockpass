@@ -87,7 +87,6 @@ import { IERC165Contract } from "./IERC165";
 import { SafeCastContract } from "./SafeCast";
 import { StringsContract } from "./Strings";
 import { BlockPassContract } from "./BlockPass";
-import { SimpleFtsoExampleContract } from "./SimpleFtsoExample";
 
 declare global {
   namespace Truffle {
@@ -203,7 +202,6 @@ declare global {
       require(name: "SafeCast"): SafeCastContract;
       require(name: "Strings"): StringsContract;
       require(name: "BlockPass"): BlockPassContract;
-      require(name: "SimpleFtsoExample"): SimpleFtsoExampleContract;
     }
   }
 }
@@ -464,7 +462,3 @@ export { IERC165Contract, IERC165Instance } from "./IERC165";
 export { SafeCastContract, SafeCastInstance } from "./SafeCast";
 export { StringsContract, StringsInstance } from "./Strings";
 export { BlockPassContract, BlockPassInstance } from "./BlockPass";
-export {
-  SimpleFtsoExampleContract,
-  SimpleFtsoExampleInstance,
-} from "./SimpleFtsoExample";

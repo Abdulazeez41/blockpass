@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Base64.sol";
 
 import {FtsoV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/FtsoV2Interface.sol";
-import {TestFtsoV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/TestFtsoV2Interface.sol";
 import {ContractRegistry} from "@flarenetwork/flare-periphery-contracts/coston2/ContractRegistry.sol";
 import {IFtsoFeedIdConverter} from "@flarenetwork/flare-periphery-contracts/coston2/IFtsoFeedIdConverter.sol";
+import {RandomNumberV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/RandomNumberV2Interface.sol";
 
 
 contract BlockPass is ERC721URIStorage, Ownable {
@@ -28,6 +28,8 @@ contract BlockPass is ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
     uint256 public volatilityThreshold = 10;
 
+    RandomNumberV2Interface rnd;
+
     mapping(uint256 => PassDetails) public getPassById;
     PassDetails[] public blockPassList;
 
@@ -40,6 +42,7 @@ contract BlockPass is ERC721URIStorage, Ownable {
     event USDInWei(uint256 priceInWei);
 
     constructor() ERC721("BlockPass", "BPASS") Ownable(msg.sender) {
+        rnd = ContractRegistry.getRandomNumberV2();
     }
 
     function createNewPass(
@@ -67,7 +70,6 @@ contract BlockPass is ERC721URIStorage, Ownable {
         totalPasses++;
     }
 
-
     function purchasePass(uint256 _blockPassId) public payable {
         PassDetails storage _pass = getPassById[_blockPassId];
 
@@ -83,7 +85,6 @@ contract BlockPass is ERC721URIStorage, Ownable {
         if (_isVolatilityHigh("FLR/USD")) {
             passPrice = (originalPriceInFLR * 90) / 100;
         }
-
 
         require(msg.value >= passPrice, "Insufficient FLR payment");
 
@@ -112,7 +113,6 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
     function convertUsdToFLRWei(uint256 usdAmount) public returns (uint256 flrPriceInWei) {
         FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        //TestFtsoV2Interface ftsoV2 = ContractRegistry.getTestFtsoV2();
         bytes21 usdFeedId = ContractRegistry
             .getFtsoFeedIdConverter()
             .getFeedId(1, "FLR/USD");
@@ -121,16 +121,9 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
         require(flrPriceInWei > 0, "Invalid FTSO price");
 
-        // Convert USD amount to FLR in Wei
         flrPriceInWei = (usdAmount * 1e18) / flrPriceInWei;
         emit USDInWei(flrPriceInWei);
     }
-
-    // Debugging event
-    event DebugLog(string message, bytes data);
-
-    //check if it returns a valid feedId
-    //try it with test interface
 
     function _generateTokenURI(PassDetails memory _pass, uint256 passPrice, uint256 originalPrice, bool bonus) internal pure returns (string memory) {
         string memory json = string(abi.encodePacked(
@@ -149,10 +142,9 @@ contract BlockPass is ERC721URIStorage, Ownable {
     }
 
     function _isWinner() internal view returns (bool) {
-        // (uint256 rand,,) = rng.getRandomNumber();
-        // return rand % 5 == 0; // 20% chance to win perk;
+        (uint256 rand,,) = rnd.getRandomNumber();
+        return rand % 5 == 0; // 20% chance to win perk;
     }
-
 
     function _isVolatilityHigh(string memory feedName) internal returns (bool) {
         uint256 currentPrice = _getCurrentPrice(feedName);
@@ -236,23 +228,6 @@ contract BlockPass is ERC721URIStorage, Ownable {
         (_priceInWei, _finalizedTimestamp) = ftsoV2.getFeedByIdInWei(
             ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName)
         );
-    }
-
-    function flrUsdConversion() external view returns (bytes21) {
-        IFtsoFeedIdConverter feedIdConverter = ContractRegistry.getFtsoFeedIdConverter();
-        return feedIdConverter.getFeedId(1, "FLR/USD");
-    }
-
-    function testFeedIdAndPrice(string memory feedName) public view returns (uint256 priceInWei, uint256 finalizedTimestamp) {
-        // Use the TestFtsoV2Interface to fetch the price for testing purposes
-        TestFtsoV2Interface ftsoV2 = ContractRegistry.getTestFtsoV2();
-        bytes21 feedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName);
-
-        // Fetch the price and timestamp using the test interface
-        (priceInWei, finalizedTimestamp) = ftsoV2.getFeedByIdInWei(feedId);
-
-        // Ensure the price is valid
-        require(priceInWei > 0, "Invalid test FTSO price");
     }
 
     receive() external payable {}

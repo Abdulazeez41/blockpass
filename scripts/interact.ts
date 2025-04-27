@@ -3,7 +3,7 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0x2707147D4cc518cB7d18110695256Ddc5badCeeC";
+const CONTRACT_ADDRESS = "0x98f15D065849BFe28bbD0AF4Fef19A3A6A81FdBE";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -15,13 +15,6 @@ async function main() {
 
   // Debugging: Log the deployer's address
   console.log("👤 Deployer address:", deployer.address);
-
-  // Debugging: Log the contract address
-  console.log("📜 Contract address:", CONTRACT_ADDRESS);
-
-  // Debugging: Log the feed ID before purchase
-  const feedId = await contract.flrUsdConversion();
-  console.log("FLR/USD Feed ID:", feedId);
 
   // Debugging: Log the USD amount being converted
   const passPriceUSD = 1;
@@ -71,19 +64,6 @@ async function main() {
     console.log("✅ Pass purchased! Tx hash:", receipt.hash);
   } catch (error: any) {
     console.error("❌ Purchase failed:", error);
-  }
-
-  // Test the feed ID and price using the test interface
-  try {
-    const feedName = "FLR/USD";
-    const [priceInWei, finalizedTimestamp] = await contract.testFeedIdAndPrice(
-      feedName
-    );
-    console.log(`🧪 Test Feed ID and Price: ${feedName}`);
-    console.log(`💰 Price in Wei: ${priceInWei.toString()}`);
-    console.log(`📅 Finalized Timestamp: ${finalizedTimestamp}`);
-  } catch (error: any) {
-    console.error("❌ Test Feed ID and Price failed:", error);
   }
 }
 
