@@ -1,0 +1,35 @@
+{
+  "name": "blockpass-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.1.5",
+    "bootstrap": "^5",
+    "bootstrap-icons": "^1.11.3",
+    "ethers": "^6.13.4",
+    "framer-motion": "^11.11.10",
+    "next": "14.2.13",
+    "react": "^18",
+    "react-dom": "^18",
+    "react-router-dom": "^6.27.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "encoding": "^0.1.13",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.13",
+    "pino-pretty": "^11.2.2",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14"
+  }
+}
