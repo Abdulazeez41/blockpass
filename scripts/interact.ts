@@ -3,7 +3,7 @@ const ethers = hre.ethers;
 import dotenv from "dotenv";
 dotenv.config();
 
-const CONTRACT_ADDRESS = "0x98f15D065849BFe28bbD0AF4Fef19A3A6A81FdBE";
+const CONTRACT_ADDRESS = "0x73d3463Fc856e5d3826A3a1f4209Ee1D5eFC0470";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -16,7 +16,7 @@ async function main() {
   // Debugging: Log the deployer's address
   console.log("👤 Deployer address:", deployer.address);
 
-  // Debugging: Log the USD amount being converted
+  // USD price of the pass
   const passPriceUSD = 1;
   console.log("💵 USD amount to convert:", passPriceUSD);
 
@@ -30,20 +30,20 @@ async function main() {
   });
 
   // Call the convertUsdToFLRWei function
-  const requiredPrice = await contract.convertUsdToFLRWei(passPriceUSD);
+  const requiredPrice = await contract._convertUsdToFLRWei(passPriceUSD);
   console.log("📢 Required Price:", requiredPrice.toString());
 
   const maxSupply = 100;
-  const startTime = Math.floor(Date.now() / 1000) + 10;
-  const endTime = startTime + 86400;
+  const metadata = "https://example.com/metadata.json"; //valid metadata link
   const category = "Music";
+  const salesDuration = 86400; // 1 day in seconds
 
   const tx = await contract.createNewPass(
+    maxSupply,
     passPriceUSD,
-    startTime,
-    endTime,
+    metadata,
     category,
-    maxSupply
+    salesDuration
   );
 
   await tx.wait();
@@ -56,9 +56,8 @@ async function main() {
   try {
     const block = await ethers.provider.getBlock("latest");
     console.log("📅 Current block timestamp:", block.timestamp);
-    console.log("🚀 Pass sale start time:", startTime);
 
-    // === 4. Pay and purchase pass
+    // Purchase the pass
     const purchaseTx = await contract.purchasePass(passId, { value: weiPrice });
     const receipt = await purchaseTx.wait();
     console.log("✅ Pass purchased! Tx hash:", receipt.hash);

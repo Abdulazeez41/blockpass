@@ -11,34 +11,39 @@ import {ContractRegistry} from "@flarenetwork/flare-periphery-contracts/coston2/
 import {IFtsoFeedIdConverter} from "@flarenetwork/flare-periphery-contracts/coston2/IFtsoFeedIdConverter.sol";
 import {RandomNumberV2Interface} from "@flarenetwork/flare-periphery-contracts/coston2/RandomNumberV2Interface.sol";
 
-
 contract BlockPass is ERC721URIStorage, Ownable {
-    struct PassDetails {
-        uint256 blockPassId;
-        uint256 passPriceUSD;
-        uint256 start_time;
-        uint256 end_time;
-        string category;
+    using Strings for uint256;
+
+    struct TicketPassDetails {
         address organizer;
-        uint256 max_passes;
-        uint256 passesSold;
+        string metadata;
+        string category;
+        address tokenAddress;
+        int64 passesSold;
+        int64 maxPasses;
+        uint256 passPriceUSD;
+        uint256 startTime;
+        uint256 salesEndTime;
+        bool bpEnded;
     }
 
-    uint256 public totalPasses;
-    uint256 public nextTokenId;
+    uint256 private nextTokenId = 1;
+
+    uint256 public ticketPassCount;
     uint256 public volatilityThreshold = 10;
+    TicketPassDetails[] public blockPassList;
 
-    RandomNumberV2Interface rnd;
+    RandomNumberV2Interface private rnd;
 
-    mapping(uint256 => PassDetails) public getPassById;
-    PassDetails[] public blockPassList;
+    mapping(uint256 => TicketPassDetails) public ticketPasses;
+    mapping(address => TicketPassDetails[]) public passesPurchasedByUser;
+    mapping(address => uint256[]) public tokenOfOwnerByIndex;
 
-    mapping(address => PassDetails[]) public blockPassesBookedByUser;
-    mapping(uint256 => address) public tokenIdToOwner;
     mapping(string => uint256) public lastSavedPrice;
     mapping(string => uint256) public lastSavedTimestamp;
 
-    event PassBooked(address indexed buyer, uint256 tokenId, uint256 blockPassId, uint256 pricePaid, bool bonus);
+    event PassCreated(uint256 indexed ticketId, address indexed organizer);
+    event PassPurchased(address indexed buyer, uint256 indexed ticketId, uint256 tokenId, uint256 pricePaid, bool bonus);
     event USDInWei(uint256 priceInWei);
 
     constructor() ERC721("BlockPass", "BPASS") Ownable(msg.sender) {
@@ -46,94 +51,98 @@ contract BlockPass is ERC721URIStorage, Ownable {
     }
 
     function createNewPass(
+        int64 maxPasses,
         uint256 passPriceUSD,
-        uint256 start_time,
-        uint256 end_time,
+        string memory metadata,
         string memory category,
-        uint256 max_passes
+        uint256 salesEndTime
     ) external {
-        require(start_time < end_time, "Invalid time window");
-
-        PassDetails memory pass = PassDetails({
-            blockPassId: totalPasses,
-            passPriceUSD: passPriceUSD,
-            start_time: start_time,
-            end_time: end_time,
-            category: category,
+        TicketPassDetails memory newPass = TicketPassDetails({
             organizer: msg.sender,
-            max_passes: max_passes,
-            passesSold: 0
+            metadata: metadata,
+            category: category,
+            tokenAddress: address(this),
+            passesSold: 0,
+            maxPasses: maxPasses,
+            passPriceUSD: passPriceUSD,
+            startTime: block.timestamp,
+            salesEndTime: block.timestamp + salesEndTime,
+            bpEnded: false
         });
 
-        getPassById[totalPasses] = pass;
-        blockPassList.push(pass);
-        totalPasses++;
+        ticketPasses[ticketPassCount] = newPass;
+        blockPassList.push(newPass);
+        emit PassCreated(ticketPassCount, msg.sender);
+        ticketPassCount++;
     }
 
-    function purchasePass(uint256 _blockPassId) public payable {
-        PassDetails storage _pass = getPassById[_blockPassId];
+    function purchasePass(uint256 _ticketId) external payable {
+        TicketPassDetails storage pass = ticketPasses[_ticketId];
 
-        require(block.timestamp >= _pass.start_time && block.timestamp <= _pass.end_time, "Not within sale window");
-        require(_pass.passesSold < _pass.max_passes, "Sold out");
+        require(block.timestamp >= pass.startTime && block.timestamp <= pass.salesEndTime, "Not in sale window");
+        require(!pass.bpEnded, "Sales ended");
+        require(pass.passesSold < pass.maxPasses, "Sold out");
 
         _ensureSavedPrice("FLR/USD");
 
-        uint256 originalPriceInFLR = convertUsdToFLRWei(_pass.passPriceUSD);
-        uint256 passPrice = originalPriceInFLR;
+        uint256 originalPriceInFLR = _convertUsdToFLRWei(pass.passPriceUSD);
+        uint256 priceToPay = originalPriceInFLR;
 
-        // Apply 10% discount during high volatility
         if (_isVolatilityHigh("FLR/USD")) {
-            passPrice = (originalPriceInFLR * 90) / 100;
+            priceToPay = (originalPriceInFLR * 90) / 100; // Apply 10% discount
         }
 
-        require(msg.value >= passPrice, "Insufficient FLR payment");
+        require(msg.value >= priceToPay, "Insufficient FLR sent");
 
         bool bonus = _isWinner();
-        string memory tokenURI = _generateTokenURI(_pass, passPrice, originalPriceInFLR, bonus);
+
+        string memory tokenURI = _generateTokenURI(_ticketId, priceToPay, originalPriceInFLR, bonus);
 
         _safeMint(msg.sender, nextTokenId);
         _setTokenURI(nextTokenId, tokenURI);
 
-        tokenIdToOwner[nextTokenId] = msg.sender;
-        blockPassesBookedByUser[msg.sender].push(_pass);
-        _pass.passesSold++;
+        pass.passesSold++;
+        passesPurchasedByUser[msg.sender].push(pass);
+        tokenOfOwnerByIndex[msg.sender].push(nextTokenId);
 
-        emit PassBooked(msg.sender, nextTokenId, _blockPassId, passPrice, bonus);
+        emit PassPurchased(msg.sender, _ticketId,nextTokenId, priceToPay, bonus);
 
-        uint256 organizerAmount = (passPrice * 90) / 100;
-        payable(_pass.organizer).transfer(organizerAmount);
+        uint256 organizerAmount = (priceToPay * 90) / 100;
+        payable(pass.organizer).transfer(organizerAmount);
 
-        if (msg.value > passPrice) {
-            payable(msg.sender).transfer(msg.value - passPrice);
+        if (msg.value > priceToPay) {
+            payable(msg.sender).transfer(msg.value - priceToPay);
         }
 
-        nextTokenId++;
+       nextTokenId++;
     }
 
-
-    function convertUsdToFLRWei(uint256 usdAmount) public returns (uint256 flrPriceInWei) {
+    function _convertUsdToFLRWei(uint256 usdAmount) public returns (uint256 flrPriceInWei) {
         FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        bytes21 usdFeedId = ContractRegistry
-            .getFtsoFeedIdConverter()
-            .getFeedId(1, "FLR/USD");
+        bytes21 usdFeedId = ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, "FLR/USD");
 
         (flrPriceInWei, ) = ftsoV2.getFeedByIdInWei(usdFeedId);
-
         require(flrPriceInWei > 0, "Invalid FTSO price");
 
         flrPriceInWei = (usdAmount * 1e18) / flrPriceInWei;
         emit USDInWei(flrPriceInWei);
     }
 
-    function _generateTokenURI(PassDetails memory _pass, uint256 passPrice, uint256 originalPrice, bool bonus) internal pure returns (string memory) {
+    function _generateTokenURI(
+        uint256 _ticketId,
+        uint256 _pricePaid,
+        uint256 _originalPrice,
+        bool _bonus
+    ) internal view returns (string memory) {
+        TicketPassDetails storage pass = ticketPasses[_ticketId];
+
         string memory json = string(abi.encodePacked(
-            '{"name": "BlockPass #', Strings.toString(_pass.blockPassId),
-            '", "description": "Exclusive access pass", "category": "', _pass.category,
-            '", "price": "', Strings.toString(passPrice),
-            '", "originalPrice": "', Strings.toString(originalPrice),
-            '", "bonus": "', bonus ? "Bonus Perk: WINNER" : "No Bonus Perk",
-            '", "discountMessage": "', passPrice < originalPrice ? "Discount applied!" : "No discount",
-            '"}'
+            '{"name":"BlockPass #', _ticketId.toString(),
+            '", "description":"Exclusive access pass for ', pass.category,
+            '", "pricePaid":"', _pricePaid.toString(),
+            '", "originalPrice":"', _originalPrice.toString(),
+            '", "bonus":"', _bonus ? "Winner Bonus" : "No Bonus",
+            '", "metadata":"', pass.metadata,'"}'
         ));
 
         return string(abi.encodePacked(
@@ -143,7 +152,7 @@ contract BlockPass is ERC721URIStorage, Ownable {
 
     function _isWinner() internal view returns (bool) {
         (uint256 rand,,) = rnd.getRandomNumber();
-        return rand % 5 == 0; // 20% chance to win perk;
+        return rand % 5 == 0;
     }
 
     function _isVolatilityHigh(string memory feedName) internal returns (bool) {
@@ -180,57 +189,53 @@ contract BlockPass is ERC721URIStorage, Ownable {
         volatilityThreshold = _threshold;
     }
 
-    function allBlockPassList() external view returns (PassDetails[] memory) {
+    function allBlockPassList() external view returns (TicketPassDetails[] memory) {
         return blockPassList;
     }
 
     function getUserTokens(address user) external view returns (uint256[] memory) {
-        uint256 count;
-        for (uint256 i = 0; i < nextTokenId; i++) {
-            if (tokenIdToOwner[i] == user) {
-                count++;
-            }
+       uint256 balance = balanceOf(user);
+        uint256[] memory result = new uint256[](balance);
+        for (uint256 i = 0; i < balance; i++) {
+            result[i] = tokenOfOwnerByIndex[user][i];
         }
-
-        uint256[] memory tokens = new uint256[](count);
-        uint256 index;
-        for (uint256 i = 0; i < nextTokenId; i++) {
-            if (tokenIdToOwner[i] == user) {
-                tokens[index++] = i;
-            }
-        }
-        return tokens;
+        return result;
     }
 
-    function getByCategory(string memory category) external view returns (PassDetails[] memory) {
-        uint256 count;
-        for (uint256 i = 0; i < blockPassList.length; i++) {
-            if (keccak256(bytes(blockPassList[i].category)) == keccak256(bytes(category))) {
-                count++;
-            }
-        }
-
-        PassDetails[] memory filtered = new PassDetails[](count);
-        uint256 index;
-        for (uint256 i = 0; i < blockPassList.length; i++) {
-            if (keccak256(bytes(blockPassList[i].category)) == keccak256(bytes(category))) {
-                filtered[index++] = blockPassList[i];
-            }
-        }
-
-        return filtered;
-    }
-
-     function getTokenPriceInUSDWei(
-        string memory feedName
-    ) public returns (uint256 _priceInWei, uint256 _finalizedTimestamp) {
-        FtsoV2Interface ftsoV2 = ContractRegistry.getFtsoV2();
-        (_priceInWei, _finalizedTimestamp) = ftsoV2.getFeedByIdInWei(
-            ContractRegistry.getFtsoFeedIdConverter().getFeedId(1, feedName)
+    function getByCategory(string memory category) external view returns (TicketPassDetails[] memory) {
+       uint256 i = 0;
+        uint256 arrayCount = 0;
+        TicketPassDetails[] memory blockPassCategory = new TicketPassDetails[](
+            blockPassList.length
         );
+
+        for (; i < blockPassList.length; i++) {
+            TicketPassDetails memory currentBPass = blockPassList[i];
+
+            if (
+                keccak256(abi.encodePacked(currentBPass.category)) ==
+                keccak256(abi.encodePacked(category))
+            ) {
+                blockPassCategory[arrayCount] = currentBPass;
+                arrayCount++;
+            }
+        }
+
+        return blockPassCategory;
+    }
+
+    function getAllPasses() external view returns (TicketPassDetails[] memory) {
+        TicketPassDetails[] memory result = new TicketPassDetails[](ticketPassCount);
+        for (uint256 i = 0; i < ticketPassCount; i++) {
+            result[i] = ticketPasses[i];
+        }
+        return result;
+    }
+
+    function getUserPurchases(address user) external view returns (TicketPassDetails[] memory) {
+        return passesPurchasedByUser[user];
     }
 
     receive() external payable {}
-
     fallback() external payable {}
 }
